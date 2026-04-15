@@ -18,7 +18,15 @@ async def start(message: Message):
 
 @router.message(Command("help"))
 async def help_handler(message: Message):
-    await message.answer("<Пояснение работы бота>")
+    await message.answer(
+        "📖 Команды бота:\n"
+        "/start — главное меню\n"
+        "/add — добавить задание\n"
+        "/list — список заданий\n"
+        "/subjects — управление предметами\n"
+        "/done — отметить задание выполненным\n"
+        "/help — это сообщение"
+    )
 
 
 @router.message(F.text == "📚 Предметы")
