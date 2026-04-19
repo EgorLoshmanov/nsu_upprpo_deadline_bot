@@ -1,5 +1,6 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from keyboards.main_menu import main_menu
@@ -29,9 +30,15 @@ async def help_handler(message: Message):
     )
 
 
-@router.message(F.text == "📚 Предметы")
-async def subjects_stub(message: Message):
-    await message.answer("В разработке...")
+@router.message(Command("cancel"))
+async def cancel_handler(message: Message, state: FSMContext):
+    current_state = await state.get_state()
+    if current_state is None:
+        await message.answer("Нет активного действия для отмены.")
+        return
+    await state.clear()
+    await message.answer("❌ Действие отменено.", reply_markup=main_menu)
+
 
 
 @router.message(F.text == "📝 Задания")
