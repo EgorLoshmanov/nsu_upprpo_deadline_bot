@@ -1,1 +1,1 @@
-DB_PATH=deadlines.db
+DB_PATH=db/deadlines.db
