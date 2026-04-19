@@ -2,23 +2,15 @@ import asyncio
 import logging
 import os
 from aiogram import Bot, Dispatcher
-from aiogram.filters import CommandStart, Command
-from aiogram.types import Message
+
 from dotenv import load_dotenv
+
+from handlers import router
 
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 dp = Dispatcher()
-
-
-@dp.message(CommandStart())
-async def start(message: Message):
-    await message.answer("<Приветствие пользователя>")
-
-
-@dp.message(Command("help"))
-async def help_handler(message: Message):
-    await message.answer("<Пояснение работы бота>")
+dp.include_router(router)
 
 
 async def main():
