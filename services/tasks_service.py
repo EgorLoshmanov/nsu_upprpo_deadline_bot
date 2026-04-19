@@ -30,18 +30,23 @@ def  get_tasks(user_id, subject_id=None, only_active=True) -> list[dict]:
     """
     conect = get_connection()
 
+    # запрос при условии что ubject_id=None 
     query = "SELECT id, subject_id, title, deadline, is_done FROM tasks WHERE user_id = ?"
     params = [user_id]
 
+    # если subject_id задано
     if subject_id is not None:
         query += " AND subject_id = ?"
         params.append(subject_id)
 
+    # если only_active=True
     if only_active:
         query += " AND is_done = 0"
 
+    # сортировка по увеличению по дедлайну
     query += " ORDER BY deadline ASC"
 
+    # отправляем запрос и получаем строки 
     rows = conect.execute(query, tuple(params)).fetchall()
     conect.close()
 
@@ -59,8 +64,9 @@ def  get_tasks(user_id, subject_id=None, only_active=True) -> list[dict]:
 
 def mark_done(user_id, task_id) -> bool:
     """
+    Функция отмечает задание выполненым
+    Возвращает: что-то изменено или нет
     """
-
     conect = get_connection()
 
     cursor = conect.execute(
@@ -80,6 +86,8 @@ def mark_done(user_id, task_id) -> bool:
 
 def delete_task(user_id, task_id) -> bool: 
     """
+    Функция удаляющее конкретное задание
+    Возвращает: удалено ли что-то
     """
     conect = get_connection()
 
