@@ -17,7 +17,7 @@ def add_subject(user_id: int, name: str) -> int:
     # сохраняем изменения
     conect.commit()
     # узнаём id созданной строки
-    subject_id = cursor.lastrowid()
+    subject_id = cursor.lastrowid
     # закрываем db
     conect.close()
 
@@ -26,7 +26,8 @@ def add_subject(user_id: int, name: str) -> int:
 
 def get_subjects(user_id: int) -> list[dict]:
     """
-
+    Функция находит все предметы пользователя
+    Возвращает: список из предметов иx id
     """
     # открываем db
     conect = get_connection()
@@ -58,6 +59,7 @@ def delete_subject(user_id: int, subject_id: int) -> bool:
     conect.commit()
     conect.close()
 
-    return cursor.rowcount > 0
+    return cursor.rowcount > 0 
 
 
+def delete_task(user_id, task_id) -> bool: 
