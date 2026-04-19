@@ -1,2 +1,2 @@
 from .database import get_connection
-# from .init_db import 
+from .init_db import init_db
