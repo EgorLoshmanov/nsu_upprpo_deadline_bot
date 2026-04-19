@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 
 # кладем переменные из .patch в окружение 
-load_dotenv(".patch")
+load_dotenv("db/.patch")
 
 # берем переменную DB_PATCH из окружения если нет то deadlines.db
 DB_PATH = os.getenv("DB_PATH") or "deadlines.db"
