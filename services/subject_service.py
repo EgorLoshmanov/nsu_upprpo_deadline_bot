@@ -34,7 +34,7 @@ def get_subjects(user_id: int) -> list[dict]:
 
     # одбираем все строки с id, name для конкретного пользователя
     rows = conect.execute(
-        "SELECT id, name FROM subjects WHERE user_id = ?", (user_id)
+        "SELECT id, name FROM subjects WHERE user_id = ?", (user_id,)
     ).fetchall() # забирает все строки из результата
 
     conect.commit()
@@ -60,7 +60,3 @@ def delete_subject(user_id: int, subject_id: int) -> bool:
     conect.close()
 
     return cursor.rowcount > 0 
-
-
-def delete_task(user_id, task_id) -> bool:
-    pass
