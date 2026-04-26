@@ -60,7 +60,3 @@ def delete_subject(user_id: int, subject_id: int) -> bool:
     conect.close()
 
     return cursor.rowcount > 0 
-
-
-def delete_task(user_id, task_id) -> bool:
-    pass
