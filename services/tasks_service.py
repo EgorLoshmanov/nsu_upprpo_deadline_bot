@@ -1,5 +1,8 @@
 from db.database import get_connection
 
+from utils import parse_deadline
+
+
 
 def add_task(user_id, subject_id, title, deadline_str) -> int:
     """
@@ -7,6 +10,8 @@ def add_task(user_id, subject_id, title, deadline_str) -> int:
     возвращает id нового task
     """
     conect = get_connection()
+
+    deadline_str = str(parse_deadline(deadline_str))
 
     cursor = conect.execute(
         "INSERT INTO tasks (user_id, subject_id, title, deadline) VALUES (?, ?, ?, ?)", 
