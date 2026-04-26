@@ -41,11 +41,6 @@ async def cancel_handler(message: Message, state: FSMContext):
 
 
 
-@router.message(F.text == "📝 Задания")
-async def tasks_stub(message: Message):
-    await message.answer("В разработке...")
-
-
 @router.message(F.text == "📅 Ближайшие дедлайны")
 async def deadlines_stub(message: Message):
     await message.answer("В разработке...")
