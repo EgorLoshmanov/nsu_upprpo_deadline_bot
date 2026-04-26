@@ -1,6 +1,7 @@
 from db.database import get_connection
 
 
+
 def add_subject(user_id: int, name: str) -> int:
     """
     Функция добавляет новую строку в таблицу subjects.
