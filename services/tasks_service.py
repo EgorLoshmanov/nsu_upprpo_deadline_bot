@@ -2,6 +2,8 @@ from db.database import get_connection
 
 from utils import parse_deadline
 
+from datetime import date, timedelta
+
 
 
 def add_task(user_id, subject_id, title, deadline_str) -> int:
@@ -107,3 +109,37 @@ def delete_task(user_id, task_id) -> bool:
 
     return cursor.rowcount > 0 
 
+
+def get_tasks_due_in(user_id: int, days: int) -> list[dict]:
+    """
+    Возвращает задачи пользователя с дедлайном в ближайшие N дней.
+    """
+    conect = get_connection()
+
+    today = date.today()
+    end_date = today + timedelta(days=days)
+
+    rows = conect.execute(
+        """
+        SELECT id, subject_id, title, deadline, is_done
+        FROM tasks
+        WHERE user_id = ?
+          AND is_done = 0
+          AND deadline BETWEEN ? AND ?
+        ORDER BY deadline ASC
+        """,
+        (user_id, str(today), str(end_date))
+    ).fetchall()
+
+    conect.close()
+
+    return [
+        {
+            "id": r[0],
+            "subject_id": r[1],
+            "title": r[2],
+            "deadline": r[3],
+            "is_done": r[4]
+        }
+        for r in rows
+    ]
