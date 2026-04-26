@@ -6,7 +6,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from keyboards.tasks_menu import tasks_menu
 from states.states import AddTaskStates
 from services.subject_service import get_subjects
-from services.tasks_service import add_task
+from services.tasks_service import add_task, get_tasks, mark_done
 
 router = Router()
 
@@ -68,13 +68,63 @@ async def task_add_deadline(message: Message, state: FSMContext):
     await message.answer("✅ Задание добавлено!")
 
 
+@router.message(Command("list"))
 @router.callback_query(F.data == "task_list")
-async def task_list_stub(callback: CallbackQuery):
-    await callback.message.answer("В разработке...")
-    await callback.answer()
+async def task_list(event: Message | CallbackQuery):
+    user_id = event.from_user.id
+    tasks = get_tasks(user_id=user_id, only_active=True)
+
+    if not tasks:
+        text = "Активных заданий нет. Добавьте через /add."
+    else:
+        subjects = {s["id"]: s["name"] for s in get_subjects(user_id=user_id)}
+        lines = []
+        for t in tasks:
+            subject_name = subjects.get(t["subject_id"], "—")
+            lines.append(f"📌 {t['title']}\n📚 {subject_name}\n📅 Дедлайн: {t['deadline']}")
+        text = "\n\n".join(lines)
+
+    if isinstance(event, CallbackQuery):
+        await event.message.answer(text)
+        await event.answer()
+    else:
+        await event.answer(text)
 
 
+@router.message(Command("done"))
 @router.callback_query(F.data == "task_done")
-async def task_done_stub(callback: CallbackQuery):
-    await callback.message.answer("В разработке...")
+async def task_done_start(event: Message | CallbackQuery):
+    user_id = event.from_user.id
+    tasks = get_tasks(user_id=user_id, only_active=True)
+
+    if not tasks:
+        text = "Активных заданий нет."
+        if isinstance(event, CallbackQuery):
+            await event.message.answer(text)
+            await event.answer()
+        else:
+            await event.answer(text)
+        return
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=t["title"], callback_data=f"done_{t['id']}")]
+            for t in tasks
+        ]
+    )
+    text = "Выберите выполненное задание:"
+    if isinstance(event, CallbackQuery):
+        await event.message.answer(text, reply_markup=keyboard)
+        await event.answer()
+    else:
+        await event.answer(text, reply_markup=keyboard)
+
+
+@router.callback_query(F.data.startswith("done_"))
+async def task_done_confirm(callback: CallbackQuery):
+    task_id = int(callback.data.removeprefix("done_"))
+    if mark_done(user_id=callback.from_user.id, task_id=task_id):
+        await callback.message.answer("✅ Задание отмечено выполненным")
+    else:
+        await callback.message.answer("❌ Задание не найдено")
     await callback.answer()
