@@ -98,11 +98,7 @@ def mark_done(user_id, task_id) -> bool:
     conect = get_connection()
 
     cursor = conect.execute(
-        """
-        UPDATE tasks
-        SET is_done = 1
-        WHERE id = ? AND user_id = ?
-        """,
+        "UPDATE tasks SET is_done = 1 WHERE id = ? AND user_id = ?",
         (task_id, user_id)
     )
 
@@ -144,7 +140,7 @@ def get_tasks_due_in(user_id: int, days: int) -> list[dict]:
     Особенность:
         возвращаются только невыполненные задачи.
     """
-    
+
     conect = get_connection()
 
     today = date.today()
@@ -182,12 +178,7 @@ def get_tasks_by_deadline(deadline: date) -> list[dict]:
     conect = get_connection()
 
     rows = conect.execute(
-        """
-        SELECT id, user_id, title, deadline
-        FROM tasks
-        WHERE is_done = 0
-          AND deadline = ?
-        """,
+        "SELECT id, user_id, title, deadline FROM tasks WHERE is_done = 0 AND deadline = ?",
         (str(deadline),)
     ).fetchall()
 
@@ -202,3 +193,85 @@ def get_tasks_by_deadline(deadline: date) -> list[dict]:
         }
         for r in rows
     ]
+
+def update_task_title(task_id: int, user_id: int, title: str):
+    """
+    Обновляет название конкретного задания пользователя.
+
+    Параметры:
+        user_id — id пользователя Telegram
+        task_id — id задания
+        title — новое название задания
+    Возвращает:
+        True, если задание найдено и обновлено
+        False, если задание не найдено
+    """
+     
+    conect = get_connection()
+
+    cursor = conect.execute(
+        "UPDATE tasks SET title = ? WHERE id = ? AND user_id = ?",
+        (title, task_id, user_id)
+    )
+
+    conect.commit()
+    conect.close()
+
+    return cursor.rowcount > 0
+
+
+def update_task_deadline(task_id: int, user_id: int, deadline_str: str):
+    """
+    Обновляет дедлайн конкретного задания пользователя.
+
+    Параметры:
+        user_id — id пользователя Telegram
+        task_id — id задания
+        deadline_str — новая дата дедлайна в виде строки
+    Возвращает:
+        True, если задание найдено и обновлено
+        False, если задание не найдено
+    Особенность:
+        deadline_str перед сохранением парсится через parse_deadline()
+        и сохраняется в БД в формате YYYY-MM-DD.
+    """
+
+    conect = get_connection()
+
+    deadline = str(parse_deadline(deadline_str))
+
+    cursor = conect.execute(
+        "UPDATE tasks SET deadline = ? WHERE id = ? AND user_id = ?",
+        (deadline, task_id, user_id)
+    )
+
+    conect.commit()
+    conect.close()
+
+    return cursor.rowcount > 0
+
+
+def update_task_note(task_id: int, user_id: int, note: str):
+    """
+    Обновляет заметку конкретного задания пользователя.
+
+    Параметры:
+        user_id — id пользователя Telegram
+        task_id — id задания
+        note — новая заметка к заданию
+    Возвращает:
+        True, если задание найдено и обновлено
+        False, если задание не найдено
+    """
+
+    conect = get_connection()
+
+    cursor = conect.execute(
+        "UPDATE tasks SET note = ? WHERE id = ? AND user_id = ?",
+        (note, task_id, user_id)
+    )
+
+    conect.commit()
+    conect.close()
+
+    return cursor.rowcount > 0

@@ -79,3 +79,55 @@ def delete_subject(user_id: int, subject_id: int) -> bool:
     conect.close()
 
     return cursor.rowcount > 0 
+
+
+def update_subject_name(user_id: int, subject_id: int, name: str) -> bool:
+    """
+    Обновляет название предмета пользователя.
+
+    Параметры:
+        user_id — id пользователя Telegram
+        subject_id — id предмета
+        name — новое название предмета
+    Возвращает:
+        True — если предмет найден и обновлён
+        False — если предмет не найден
+    """
+
+    conect = get_connection()
+
+    cursor = conect.execute(
+        "UPDATE subjects SET name = ? WHERE id = ? AND user_id = ?",
+        (name, subject_id, user_id)
+    )
+
+    conect.commit()
+    conect.close()
+
+    return cursor.rowcount > 0
+
+
+def update_subject_note(user_id: int, subject_id: int, note: str) -> bool:
+    """
+    Обновляет заметку к предмету пользователя.
+
+    Параметры:
+        user_id — id пользователя Telegram
+        subject_id — id предмета
+        note — новая заметка
+    Возвращает:
+        True — если предмет найден и обновлён
+        False — если предмет не найден
+    """
+
+    conect = get_connection()
+
+    cursor = conect.execute(
+        "UPDATE subjects SET note = ? WHERE id = ? AND user_id = ?",
+        (note, subject_id, user_id)
+    )
+
+    conect.commit()
+    conect.close()
+
+    return cursor.rowcount > 0
