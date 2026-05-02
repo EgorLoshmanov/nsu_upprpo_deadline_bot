@@ -8,7 +8,6 @@ from datetime import timedelta # сдвиг во времение или дат�
 from services import get_tasks_by_deadline
 
 
-
 async def sleep_until_morning():
     """
     Приостанавливает выполнение до ближайших 09:00.
@@ -69,7 +68,7 @@ async def deadline_notifier(bot):
         - При перезапуске бота в тот же день возможно повторное уведомление
         - Не учитывает время дедлайна (только дату)
     """
-    
+
     while True:
         # цикл заходит сюда и засыпает и этот while останавливается притом внешний while работает как обычно
         await sleep_until_morning()

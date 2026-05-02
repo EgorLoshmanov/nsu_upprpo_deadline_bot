@@ -6,18 +6,30 @@ from datetime import date, timedelta
 
 
 
-def add_task(user_id, subject_id, title, deadline_str) -> int:
+def add_task(user_id, subject_id, title, deadline_str, note: str = "") -> int:
     """
-    Функция добавляет новое задание
-    возвращает id нового task
+    Добавляет новое задание в таблицу tasks.
+
+    Параметры:
+        user_id — id пользователя Telegram
+        subject_id — id предмета, к которому относится задание
+        title — название задания
+        deadline_str — дедлайн в виде строки, введённой пользователем
+        note — заметка к заданию: ссылка, пояснение, условие и т.д.
+    Возвращает:
+        id созданного задания
+    Особенность:
+        deadline_str перед сохранением парсится через parse_deadline()
+        и сохраняется в БД в нормализованном ISO-формате YYYY-MM-DD.
     """
+
     conect = get_connection()
 
     deadline_str = str(parse_deadline(deadline_str))
 
     cursor = conect.execute(
-        "INSERT INTO tasks (user_id, subject_id, title, deadline) VALUES (?, ?, ?, ?)", 
-        (user_id, subject_id, title, deadline_str)
+        "INSERT INTO tasks (user_id, subject_id, title, deadline, note) VALUES (?, ?, ?, ?, ?)", 
+        (user_id, subject_id, title, deadline_str, note)
     )
 
     conect.commit()
@@ -28,17 +40,25 @@ def add_task(user_id, subject_id, title, deadline_str) -> int:
     return task_id
 
 
-def  get_tasks(user_id, subject_id=None, only_active=True) -> list[dict]:
+def get_tasks(user_id, subject_id=None, only_active=True) -> list[dict]:
     """
     Возвращает список заданий пользователя.
-  - subject_id=None — если передан, фильтрует по предмету, иначе все предметы
-  - only_active=True — если True, возвращает только невыполненные (is_done=0)                                                                                               
-  - Отсортировано по дедлайну от ближайшего к дальнему 
+
+    Параметры:
+        user_id — id пользователя Telegram
+        subject_id — если передан, возвращаются задачи только этого предмета
+        only_active — если True, возвращаются только невыполненные задачи
+    Возвращает:
+        список словарей с полями:
+        id, subject_id, title, deadline, is_done, note
+    Особенность:
+        задачи отсортированы по дедлайну от ближайшего к дальнему.
     """
+    
     conect = get_connection()
 
     # запрос при условии что ubject_id=None 
-    query = "SELECT id, subject_id, title, deadline, is_done FROM tasks WHERE user_id = ?"
+    query = "SELECT id, subject_id, title, deadline, is_done, note FROM tasks WHERE user_id = ?"
     params = [user_id]
 
     # если subject_id задано
@@ -63,7 +83,8 @@ def  get_tasks(user_id, subject_id=None, only_active=True) -> list[dict]:
             "subject_id": r[1],
             "title": r[2],
             "deadline": r[3],
-            "is_done": r[4]
+            "is_done": r[4],
+            "note": r[5],
         }
         for r in rows
     ]
@@ -113,7 +134,17 @@ def delete_task(user_id, task_id) -> bool:
 def get_tasks_due_in(user_id: int, days: int) -> list[dict]:
     """
     Возвращает задачи пользователя с дедлайном в ближайшие N дней.
+
+    Параметры:
+        user_id — id пользователя Telegram
+        days — количество дней вперёд от сегодняшней даты
+    Возвращает:
+        список словарей с полями:
+        id, subject_id, title, deadline, is_done, note
+    Особенность:
+        возвращаются только невыполненные задачи.
     """
+    
     conect = get_connection()
 
     today = date.today()
@@ -121,7 +152,7 @@ def get_tasks_due_in(user_id: int, days: int) -> list[dict]:
 
     rows = conect.execute(
         """
-        SELECT id, subject_id, title, deadline, is_done
+        SELECT id, subject_id, title, deadline, is_done, note
         FROM tasks
         WHERE user_id = ?
           AND is_done = 0
@@ -139,7 +170,8 @@ def get_tasks_due_in(user_id: int, days: int) -> list[dict]:
             "subject_id": r[1],
             "title": r[2],
             "deadline": r[3],
-            "is_done": r[4]
+            "is_done": r[4],
+            "note": r[5]
         }
         for r in rows
     ]

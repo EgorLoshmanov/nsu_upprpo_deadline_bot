@@ -29,6 +29,16 @@ def init_db():
     )
     """)
 
+    # добавляем новые поля 
+    try:
+        conect.execute("ALTER TABLE subjects ADD COLUMN note TEXT")
+    except:
+        pass
+
+    try:
+        conect.execute("ALTER TABLE tasks ADD COLUMN note TEXT")
+    except:
+        pass
     # сохраняем таблицы в базе данных 
     conect.commit()
     # закрываем базу данных

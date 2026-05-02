@@ -2,17 +2,23 @@ from db.database import get_connection
 
 
 
-def add_subject(user_id: int, name: str) -> int:
+def add_subject(user_id: int, name: str, note: str = "") -> int:
     """
-    Функция добавляет новую строку в таблицу subjects.
-    Вщзвращает: id созданной строки
+    Добавляет новый предмет пользователя в таблицу subjects.
+
+    Параметры:
+        user_id — id пользователя Telegram
+        name — название предмета
+        note — заметка к предмету: ссылки, пояснения, где лежат задания и т.д.
+    Возвращает:
+        id созданного предмета
     """
     # открываем db
     conect = get_connection()
 
     # вставляем значения в таблицу db и возвращаем объект с метадаными
     cursor = conect.execute(
-        "INSERT INTO subjects (user_id, name) VALUES (?, ?)", (user_id, name)
+        "INSERT INTO subjects (user_id, name, note) VALUES (?, ?, ?)", (user_id, name, note)
     )
 
     # сохраняем изменения
@@ -27,21 +33,33 @@ def add_subject(user_id: int, name: str) -> int:
 
 def get_subjects(user_id: int) -> list[dict]:
     """
-    Функция находит все предметы пользователя
-    Возвращает: список из предметов иx id
+    Находит все предметы пользователя.
+
+    Параметры:
+        user_id — id пользователя Telegram
+    Возвращает:
+        список словарей с полями:
+        id, name, note
     """
     # открываем db
     conect = get_connection()
 
     # одбираем все строки с id, name для конкретного пользователя
     rows = conect.execute(
-        "SELECT id, name FROM subjects WHERE user_id = ?", (user_id,)
+        "SELECT id, name, note FROM subjects WHERE user_id = ?", (user_id,)
     ).fetchall() # забирает все строки из результата
 
     conect.commit()
     conect.close()
 
-    return [{"id": row[0], "name": row[1]} for row in rows]
+    return [
+        {
+            "id": row[0],
+            "name": row[1],
+            "note": row[2],
+        }
+        for row in rows
+    ]
 
 
 def delete_subject(user_id: int, subject_id: int) -> bool:
