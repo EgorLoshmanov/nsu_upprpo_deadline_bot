@@ -275,3 +275,28 @@ def update_task_note(task_id: int, user_id: int, note: str):
     conect.close()
 
     return cursor.rowcount > 0
+
+
+def delete_old_tasks(days: int = 12) -> int:
+    """
+    Удаляет старые невыполненные задачи
+
+    Параметры:
+        days — через сколько дней после дедлайна удалять задачу
+    Возвращает:
+        количество удалённых задач
+    """
+
+    conect = get_connection()
+
+    border_date = date.today() - timedelta(days=days)
+
+    cursor = conect.execute(
+        "DELETE FROM tasks WHERE is_done = 0 AND deadline <= ?",
+        (str(border_date),)
+    )
+
+    conect.commit()
+    conect.close()
+
+    return cursor.rowcount

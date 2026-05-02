@@ -5,7 +5,7 @@ from datetime import date #  тоько дата
 from datetime import time # только время
 from datetime import timedelta # сдвиг во времение или дате
 
-from services import get_tasks_by_deadline
+from services import get_tasks_by_deadline, delete_old_tasks
 
 
 async def sleep_until_morning():
@@ -85,3 +85,8 @@ async def deadline_notifier(bot):
                 chat_id=task["user_id"],
                 text=f"⏰ Завтра дедлайн!\n\n📌 {task['title']}"
             )
+
+        #  очистка старых задач
+        deleted = delete_old_tasks(12)
+
+        print(f"[CLEANUP] deleted {deleted} old tasks")
