@@ -9,6 +9,8 @@ from handlers import router
 
 from db import get_connection, init_db
 
+from services import deadline_notifier
+
 
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
@@ -28,7 +30,11 @@ async def main():
 
     bot = Bot(token=TOKEN)
     try:
+        # фоновая задача для отправки уведомлений 
+        asyncio.create_task(deadline_notifier(bot))
+        # основной цикл
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+
     finally:
         await bot.session.close()
 

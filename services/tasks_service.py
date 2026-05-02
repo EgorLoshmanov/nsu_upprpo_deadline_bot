@@ -143,3 +143,30 @@ def get_tasks_due_in(user_id: int, days: int) -> list[dict]:
         }
         for r in rows
     ]
+
+
+# для уведомлений о дедлайне
+def get_tasks_by_deadline(deadline: date) -> list[dict]:
+    conect = get_connection()
+
+    rows = conect.execute(
+        """
+        SELECT id, user_id, title, deadline
+        FROM tasks
+        WHERE is_done = 0
+          AND deadline = ?
+        """,
+        (str(deadline),)
+    ).fetchall()
+
+    conect.close()
+
+    return [
+        {
+            "id": r[0],
+            "user_id": r[1],
+            "title": r[2],
+            "deadline": r[3],
+        }
+        for r in rows
+    ]
