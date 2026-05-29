@@ -24,8 +24,20 @@ async def subject_add_start(callback: CallbackQuery, state: FSMContext):
 
 
 @router.message(AddSubjectStates.waiting_name)
+async def subject_add_name(message: Message, state: FSMContext):
+    await state.update_data(name=message.text)
+    await message.answer(
+        "Введите заметку к предмету (ссылка, пояснение) "
+        "или отправьте «-», чтобы пропустить:"
+    )
+    await state.set_state(AddSubjectStates.waiting_note)
+
+
+@router.message(AddSubjectStates.waiting_note)
 async def subject_add_finish(message: Message, state: FSMContext):
-    add_subject(user_id=message.from_user.id, name=message.text)
+    data = await state.get_data()
+    note = "" if message.text.strip() == "-" else message.text
+    add_subject(user_id=message.from_user.id, name=data["name"], note=note)
     await state.clear()
     await message.answer("✅ Предмет добавлен")
 
@@ -36,7 +48,12 @@ async def subject_list(callback: CallbackQuery):
     if not subjects:
         await callback.message.answer("У вас пока нет предметов.")
     else:
-        lines = [f"{i + 1}. {s['name']}" for i, s in enumerate(subjects)]
+        lines = []
+        for i, s in enumerate(subjects):
+            line = f"{i + 1}. {s['name']}"
+            if s["note"]:
+                line += f"\n   📝 {s['note']}"
+            lines.append(line)
         await callback.message.answer("📚 Ваши предметы:\n" + "\n".join(lines))
     await callback.answer()
 

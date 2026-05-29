@@ -7,6 +7,7 @@ from keyboards.tasks_menu import tasks_menu
 from states.states import AddTaskStates
 from services.subject_service import get_subjects
 from services.tasks_service import add_task, get_tasks, mark_done
+from utils import parse_deadline
 
 router = Router()
 
@@ -53,17 +54,30 @@ async def task_add_title(message: Message, state: FSMContext):
 
 @router.message(AddTaskStates.waiting_deadline)
 async def task_add_deadline(message: Message, state: FSMContext):
-    data = await state.get_data()
     try:
-        add_task(
-            user_id=message.from_user.id,
-            subject_id=data["subject_id"],
-            title=data["title"],
-            deadline_str=message.text,
-        )
+        parse_deadline(message.text)
     except ValueError as e:
         await message.answer(f"❌ {e}\nПопробуйте ещё раз:")
         return
+    await state.update_data(deadline=message.text)
+    await message.answer(
+        "Введите заметку к заданию (ссылка, пояснение) "
+        "или отправьте «-», чтобы пропустить:"
+    )
+    await state.set_state(AddTaskStates.waiting_note)
+
+
+@router.message(AddTaskStates.waiting_note)
+async def task_add_note(message: Message, state: FSMContext):
+    data = await state.get_data()
+    note = "" if message.text.strip() == "-" else message.text
+    add_task(
+        user_id=message.from_user.id,
+        subject_id=data["subject_id"],
+        title=data["title"],
+        deadline_str=data["deadline"],
+        note=note,
+    )
     await state.clear()
     await message.answer("✅ Задание добавлено!")
 
@@ -81,7 +95,10 @@ async def task_list(event: Message | CallbackQuery):
         lines = []
         for t in tasks:
             subject_name = subjects.get(t["subject_id"], "—")
-            lines.append(f"📌 {t['title']}\n📚 {subject_name}\n📅 Дедлайн: {t['deadline']}")
+            line = f"📌 {t['title']}\n📚 {subject_name}\n📅 Дедлайн: {t['deadline']}"
+            if t["note"]:
+                line += f"\n📝 {t['note']}"
+            lines.append(line)
         text = "\n\n".join(lines)
 
     if isinstance(event, CallbackQuery):
