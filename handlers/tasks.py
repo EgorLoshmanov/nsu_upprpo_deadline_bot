@@ -17,7 +17,14 @@ from services.tasks_service import (
 )
 from utils import parse_deadline
 
+from datetime import date
+
 router = Router()
+
+NOTE_PROMPT = (
+    "Введите заметку к заданию (ссылка, пояснение) "
+    "или отправьте «-», чтобы пропустить:"
+)
 
 
 @router.message(Command("add"))
@@ -63,16 +70,42 @@ async def task_add_title(message: Message, state: FSMContext):
 @router.message(AddTaskStates.waiting_deadline)
 async def task_add_deadline(message: Message, state: FSMContext):
     try:
-        parse_deadline(message.text)
+        deadline = parse_deadline(message.text)
     except ValueError as e:
         await message.answer(f"❌ {e}\nПопробуйте ещё раз:")
         return
     await state.update_data(deadline=message.text)
-    await message.answer(
-        "Введите заметку к заданию (ссылка, пояснение) "
-        "или отправьте «-», чтобы пропустить:"
-    )
+
+    if deadline < date.today():
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="✅ Всё равно добавить", callback_data="past_ok")],
+                [InlineKeyboardButton(text="✏️ Ввести другую дату", callback_data="past_change")],
+            ]
+        )
+        await message.answer(
+            f"⚠️ Дата {deadline} уже прошла. Всё равно добавить задание?",
+            reply_markup=keyboard,
+        )
+        await state.set_state(AddTaskStates.confirm_past_deadline)
+        return
+
+    await message.answer(NOTE_PROMPT)
     await state.set_state(AddTaskStates.waiting_note)
+
+
+@router.callback_query(F.data == "past_ok", AddTaskStates.confirm_past_deadline)
+async def task_add_past_ok(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer(NOTE_PROMPT)
+    await state.set_state(AddTaskStates.waiting_note)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "past_change", AddTaskStates.confirm_past_deadline)
+async def task_add_past_change(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer("Введите дедлайн (например: 25.04, завтра, 5 мая):")
+    await state.set_state(AddTaskStates.waiting_deadline)
+    await callback.answer()
 
 
 @router.message(AddTaskStates.waiting_note)
@@ -108,6 +141,32 @@ async def task_list(event: Message | CallbackQuery):
                 line += f"\n📝 {t['note']}"
             lines.append(line)
         text = "\n\n".join(lines)
+
+    if isinstance(event, CallbackQuery):
+        await event.message.answer(text)
+        await event.answer()
+    else:
+        await event.answer(text)
+
+
+@router.message(Command("completed"))
+@router.callback_query(F.data == "task_completed")
+async def task_completed_list(event: Message | CallbackQuery):
+    user_id = event.from_user.id
+    tasks = [t for t in get_tasks(user_id=user_id, only_active=False) if t["is_done"]]
+
+    if not tasks:
+        text = "Выполненных заданий нет."
+    else:
+        subjects = {s["id"]: s["name"] for s in get_subjects(user_id=user_id)}
+        lines = []
+        for t in tasks:
+            subject_name = subjects.get(t["subject_id"], "—")
+            line = f"✅ {t['title']}\n📚 {subject_name}\n📅 Дедлайн: {t['deadline']}"
+            if t["note"]:
+                line += f"\n📝 {t['note']}"
+            lines.append(line)
+        text = "✅ Выполненные задания:\n\n" + "\n\n".join(lines)
 
     if isinstance(event, CallbackQuery):
         await event.message.answer(text)

@@ -14,6 +14,7 @@ class AddTaskStates(StatesGroup):
     waiting_subject = State()
     waiting_title = State()
     waiting_deadline = State()
+    confirm_past_deadline = State()
     waiting_note = State()
 
 
