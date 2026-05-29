@@ -149,6 +149,47 @@ async def task_list(event: Message | CallbackQuery):
         await event.answer(text)
 
 
+@router.callback_query(F.data == "task_by_subject")
+async def task_by_subject_start(callback: CallbackQuery):
+    subjects = get_subjects(user_id=callback.from_user.id)
+    if not subjects:
+        await callback.message.answer("Сначала добавьте предмет через /subjects.")
+        await callback.answer()
+        return
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=s["name"], callback_data=f"tasks_subj_{s['id']}")]
+            for s in subjects
+        ]
+    )
+    await callback.message.answer("Выберите предмет:", reply_markup=keyboard)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("tasks_subj_"))
+async def task_by_subject_list(callback: CallbackQuery):
+    subject_id = int(callback.data.removeprefix("tasks_subj_"))
+    user_id = callback.from_user.id
+    tasks = get_tasks(user_id=user_id, subject_id=subject_id, only_active=True)
+
+    subjects = {s["id"]: s["name"] for s in get_subjects(user_id=user_id)}
+    subject_name = subjects.get(subject_id, "—")
+
+    if not tasks:
+        text = f"📚 {subject_name}: активных заданий нет."
+    else:
+        lines = []
+        for t in tasks:
+            line = f"📌 {t['title']}\n📅 Дедлайн: {t['deadline']}"
+            if t["note"]:
+                line += f"\n📝 {t['note']}"
+            lines.append(line)
+        text = f"📚 {subject_name}:\n\n" + "\n\n".join(lines)
+
+    await callback.message.answer(text)
+    await callback.answer()
+
+
 @router.message(Command("completed"))
 @router.callback_query(F.data == "task_completed")
 async def task_completed_list(event: Message | CallbackQuery):
