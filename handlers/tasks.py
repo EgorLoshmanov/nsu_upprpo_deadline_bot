@@ -325,17 +325,48 @@ async def task_edit_apply(message: Message, state: FSMContext):
     field = data["field"]
     user_id = message.from_user.id
 
-    try:
-        if field == "title":
-            ok = update_task_title(task_id, user_id, message.text)
-        elif field == "deadline":
-            ok = update_task_deadline(task_id, user_id, message.text)
-        else:
-            note = "" if message.text.strip() == "-" else message.text
-            ok = update_task_note(task_id, user_id, note)
-    except ValueError as e:
-        await message.answer(f"❌ {e}\nПопробуйте ещё раз:")
-        return
+    if field == "deadline":
+        try:
+            deadline = parse_deadline(message.text)
+        except ValueError as e:
+            await message.answer(f"❌ {e}\nПопробуйте ещё раз:")
+            return
+        if deadline < date.today():
+            await state.update_data(new_value=message.text)
+            keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="✅ Всё равно сохранить", callback_data="edit_past_ok")],
+                    [InlineKeyboardButton(text="✏️ Ввести другую дату", callback_data="edit_past_change")],
+                ]
+            )
+            await message.answer(
+                f"⚠️ Дата {deadline} уже прошла. Всё равно сохранить?",
+                reply_markup=keyboard,
+            )
+            await state.set_state(EditTaskStates.confirm_past_deadline)
+            return
+        ok = update_task_deadline(task_id, user_id, message.text)
+    elif field == "title":
+        ok = update_task_title(task_id, user_id, message.text)
+    else:
+        note = "" if message.text.strip() == "-" else message.text
+        ok = update_task_note(task_id, user_id, note)
 
     await state.clear()
     await message.answer("✅ Задание обновлено" if ok else "❌ Задание не найдено")
+
+
+@router.callback_query(F.data == "edit_past_ok", EditTaskStates.confirm_past_deadline)
+async def task_edit_past_ok(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    ok = update_task_deadline(data["task_id"], callback.from_user.id, data["new_value"])
+    await state.clear()
+    await callback.message.answer("✅ Задание обновлено" if ok else "❌ Задание не найдено")
+    await callback.answer()
+
+
+@router.callback_query(F.data == "edit_past_change", EditTaskStates.confirm_past_deadline)
+async def task_edit_past_change(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer(EDIT_FIELD_PROMPTS["deadline"])
+    await state.set_state(EditTaskStates.waiting_value)
+    await callback.answer()

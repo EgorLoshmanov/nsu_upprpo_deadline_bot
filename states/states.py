@@ -20,3 +20,4 @@ class AddTaskStates(StatesGroup):
 
 class EditTaskStates(StatesGroup):
     waiting_value = State()
+    confirm_past_deadline = State()
