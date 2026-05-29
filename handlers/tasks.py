@@ -4,9 +4,17 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 from keyboards.tasks_menu import tasks_menu
-from states.states import AddTaskStates
+from states.states import AddTaskStates, EditTaskStates
 from services.subject_service import get_subjects
-from services.tasks_service import add_task, get_tasks, mark_done, delete_task
+from services.tasks_service import (
+    add_task,
+    get_tasks,
+    mark_done,
+    delete_task,
+    update_task_title,
+    update_task_deadline,
+    update_task_note,
+)
 from utils import parse_deadline
 
 router = Router()
@@ -187,3 +195,88 @@ async def task_delete_confirm(callback: CallbackQuery):
     else:
         await callback.message.answer("❌ Задание не найдено")
     await callback.answer()
+
+
+EDIT_FIELD_PROMPTS = {
+    "title": "Введите новое название задания:",
+    "deadline": "Введите новый дедлайн (например: 25.04, завтра, 5 мая):",
+    "note": "Введите новую заметку (или «-», чтобы очистить):",
+}
+
+
+@router.message(Command("edit"))
+@router.callback_query(F.data == "task_edit")
+async def task_edit_start(event: Message | CallbackQuery):
+    user_id = event.from_user.id
+    tasks = get_tasks(user_id=user_id, only_active=False)
+
+    if not tasks:
+        text = "Заданий нет."
+        if isinstance(event, CallbackQuery):
+            await event.message.answer(text)
+            await event.answer()
+        else:
+            await event.answer(text)
+        return
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(
+                text=("✅ " if t["is_done"] else "") + t["title"],
+                callback_data=f"edit_task_{t['id']}",
+            )]
+            for t in tasks
+        ]
+    )
+    text = "Выберите задание для редактирования:"
+    if isinstance(event, CallbackQuery):
+        await event.message.answer(text, reply_markup=keyboard)
+        await event.answer()
+    else:
+        await event.answer(text, reply_markup=keyboard)
+
+
+@router.callback_query(F.data.startswith("edit_task_"))
+async def task_edit_choose_field(callback: CallbackQuery):
+    task_id = int(callback.data.removeprefix("edit_task_"))
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📝 Название", callback_data=f"ef_title_{task_id}")],
+            [InlineKeyboardButton(text="📅 Дедлайн", callback_data=f"ef_deadline_{task_id}")],
+            [InlineKeyboardButton(text="🗒 Заметка", callback_data=f"ef_note_{task_id}")],
+        ]
+    )
+    await callback.message.answer("Что изменить?", reply_markup=keyboard)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("ef_"))
+async def task_edit_field_selected(callback: CallbackQuery, state: FSMContext):
+    field, task_id = callback.data.removeprefix("ef_").rsplit("_", 1)
+    await state.update_data(task_id=int(task_id), field=field)
+    await callback.message.answer(EDIT_FIELD_PROMPTS[field])
+    await state.set_state(EditTaskStates.waiting_value)
+    await callback.answer()
+
+
+@router.message(EditTaskStates.waiting_value)
+async def task_edit_apply(message: Message, state: FSMContext):
+    data = await state.get_data()
+    task_id = data["task_id"]
+    field = data["field"]
+    user_id = message.from_user.id
+
+    try:
+        if field == "title":
+            ok = update_task_title(task_id, user_id, message.text)
+        elif field == "deadline":
+            ok = update_task_deadline(task_id, user_id, message.text)
+        else:
+            note = "" if message.text.strip() == "-" else message.text
+            ok = update_task_note(task_id, user_id, note)
+    except ValueError as e:
+        await message.answer(f"❌ {e}\nПопробуйте ещё раз:")
+        return
+
+    await state.clear()
+    await message.answer("✅ Задание обновлено" if ok else "❌ Задание не найдено")

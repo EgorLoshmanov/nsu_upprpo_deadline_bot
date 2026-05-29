@@ -5,6 +5,7 @@ tasks_menu = InlineKeyboardMarkup(
         [InlineKeyboardButton(text="➕ Добавить задание", callback_data="task_add")],
         [InlineKeyboardButton(text="📋 Список заданий", callback_data="task_list")],
         [InlineKeyboardButton(text="✅ Отметить выполненным", callback_data="task_done")],
+        [InlineKeyboardButton(text="✏️ Редактировать задание", callback_data="task_edit")],
         [InlineKeyboardButton(text="🗑 Удалить задание", callback_data="task_delete")],
     ]
 )

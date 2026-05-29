@@ -31,6 +31,7 @@ async def help_handler(message: Message):
         "/upcoming — ближайшие дедлайны\n"
         "/subjects — управление предметами\n"
         "/done — отметить задание выполненным\n"
+        "/edit — редактировать задание\n"
         "/delete — удалить задание\n"
         "/help — это сообщение"
     )

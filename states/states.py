@@ -11,3 +11,7 @@ class AddTaskStates(StatesGroup):
     waiting_title = State()
     waiting_deadline = State()
     waiting_note = State()
+
+
+class EditTaskStates(StatesGroup):
+    waiting_value = State()
