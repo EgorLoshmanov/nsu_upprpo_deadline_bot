@@ -3,6 +3,8 @@ services:
     build: .
     env_file:
       - .env
+    environment:
+      - TZ=Asia/Novosibirsk
     volumes:
       - ./db:/app/db
     restart: unless-stopped
