@@ -6,7 +6,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from keyboards.tasks_menu import tasks_menu
 from states.states import AddTaskStates
 from services.subject_service import get_subjects
-from services.tasks_service import add_task, get_tasks, mark_done
+from services.tasks_service import add_task, get_tasks, mark_done, delete_task
 from utils import parse_deadline
 
 router = Router()
@@ -142,6 +142,48 @@ async def task_done_confirm(callback: CallbackQuery):
     task_id = int(callback.data.removeprefix("done_"))
     if mark_done(user_id=callback.from_user.id, task_id=task_id):
         await callback.message.answer("✅ Задание отмечено выполненным")
+    else:
+        await callback.message.answer("❌ Задание не найдено")
+    await callback.answer()
+
+
+@router.message(Command("delete"))
+@router.callback_query(F.data == "task_delete")
+async def task_delete_start(event: Message | CallbackQuery):
+    user_id = event.from_user.id
+    tasks = get_tasks(user_id=user_id, only_active=False)
+
+    if not tasks:
+        text = "Заданий нет."
+        if isinstance(event, CallbackQuery):
+            await event.message.answer(text)
+            await event.answer()
+        else:
+            await event.answer(text)
+        return
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(
+                text=("✅ " if t["is_done"] else "") + t["title"],
+                callback_data=f"del_task_{t['id']}",
+            )]
+            for t in tasks
+        ]
+    )
+    text = "Выберите задание для удаления:"
+    if isinstance(event, CallbackQuery):
+        await event.message.answer(text, reply_markup=keyboard)
+        await event.answer()
+    else:
+        await event.answer(text, reply_markup=keyboard)
+
+
+@router.callback_query(F.data.startswith("del_task_"))
+async def task_delete_confirm(callback: CallbackQuery):
+    task_id = int(callback.data.removeprefix("del_task_"))
+    if delete_task(user_id=callback.from_user.id, task_id=task_id):
+        await callback.message.answer("🗑 Задание удалено")
     else:
         await callback.message.answer("❌ Задание не найдено")
     await callback.answer()

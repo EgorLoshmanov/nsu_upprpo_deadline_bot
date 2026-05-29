@@ -26,6 +26,7 @@ async def help_handler(message: Message):
         "/list — список заданий\n"
         "/subjects — управление предметами\n"
         "/done — отметить задание выполненным\n"
+        "/delete — удалить задание\n"
         "/help — это сообщение"
     )
 
