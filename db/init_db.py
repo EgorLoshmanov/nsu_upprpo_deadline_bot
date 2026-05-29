@@ -39,6 +39,12 @@ def init_db():
         conect.execute("ALTER TABLE tasks ADD COLUMN note TEXT")
     except:
         pass
+
+    # дата отметки выполнения — от неё считается автоудаление выполненных задач
+    try:
+        conect.execute("ALTER TABLE tasks ADD COLUMN done_at DATE")
+    except:
+        pass
     # сохраняем таблицы в базе данных 
     conect.commit()
     # закрываем базу данных

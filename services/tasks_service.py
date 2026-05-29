@@ -98,8 +98,8 @@ def mark_done(user_id, task_id) -> bool:
     conect = get_connection()
 
     cursor = conect.execute(
-        "UPDATE tasks SET is_done = 1 WHERE id = ? AND user_id = ?",
-        (task_id, user_id)
+        "UPDATE tasks SET is_done = 1, done_at = ? WHERE id = ? AND user_id = ?",
+        (str(date.today()), task_id, user_id)
     )
 
     conect.commit()
@@ -306,9 +306,12 @@ def delete_old_tasks_completed(days: int = 30) -> int:
     Удаляет старые выполненные задачи
 
     Параметры:
-        days — через сколько дней после дедлайна удалять задачу
+        days — через сколько дней после отметки выполнения удалять задачу
     Возвращает:
         количество удалённых задач
+    Особенность:
+        отсчёт идёт от done_at (даты отметки выполнения). Для задач,
+        выполненных до появления поля done_at, отсчёт идёт от дедлайна.
     """
 
     conect = get_connection()
@@ -316,7 +319,7 @@ def delete_old_tasks_completed(days: int = 30) -> int:
     border_date = date.today() - timedelta(days=days)
 
     cursor = conect.execute(
-        "DELETE FROM tasks WHERE is_done = 1 AND deadline <= ?",
+        "DELETE FROM tasks WHERE is_done = 1 AND COALESCE(done_at, deadline) <= ?",
         (str(border_date),)
     )
 
