@@ -4,8 +4,14 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 from keyboards.subjects_menu import subjects_menu
-from states.states import AddSubjectStates
-from services.subject_service import add_subject, get_subjects, delete_subject
+from states.states import AddSubjectStates, EditSubjectStates
+from services.subject_service import (
+    add_subject,
+    get_subjects,
+    delete_subject,
+    update_subject_name,
+    update_subject_note,
+)
 
 router = Router()
 
@@ -84,3 +90,65 @@ async def subject_delete_confirm(callback: CallbackQuery):
     else:
         await callback.message.answer("❌ Предмет не найден")
     await callback.answer()
+
+
+EDIT_FIELD_PROMPTS = {
+    "name": "Введите новое название предмета:",
+    "note": "Введите новую заметку (или «-», чтобы очистить):",
+}
+
+
+@router.callback_query(F.data == "subject_edit")
+async def subject_edit_start(callback: CallbackQuery):
+    subjects = get_subjects(user_id=callback.from_user.id)
+    if not subjects:
+        await callback.message.answer("У вас пока нет предметов.")
+        await callback.answer()
+        return
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=s["name"], callback_data=f"edit_subj_{s['id']}")]
+            for s in subjects
+        ]
+    )
+    await callback.message.answer("Выберите предмет для редактирования:", reply_markup=keyboard)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("edit_subj_"))
+async def subject_edit_choose_field(callback: CallbackQuery):
+    subject_id = int(callback.data.removeprefix("edit_subj_"))
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📝 Название", callback_data=f"sf_name_{subject_id}")],
+            [InlineKeyboardButton(text="🗒 Заметка", callback_data=f"sf_note_{subject_id}")],
+        ]
+    )
+    await callback.message.answer("Что изменить?", reply_markup=keyboard)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("sf_"))
+async def subject_edit_field_selected(callback: CallbackQuery, state: FSMContext):
+    field, subject_id = callback.data.removeprefix("sf_").rsplit("_", 1)
+    await state.update_data(subject_id=int(subject_id), field=field)
+    await callback.message.answer(EDIT_FIELD_PROMPTS[field])
+    await state.set_state(EditSubjectStates.waiting_value)
+    await callback.answer()
+
+
+@router.message(EditSubjectStates.waiting_value)
+async def subject_edit_apply(message: Message, state: FSMContext):
+    data = await state.get_data()
+    subject_id = data["subject_id"]
+    field = data["field"]
+    user_id = message.from_user.id
+
+    if field == "name":
+        ok = update_subject_name(user_id, subject_id, message.text)
+    else:
+        note = "" if message.text.strip() == "-" else message.text
+        ok = update_subject_note(user_id, subject_id, note)
+
+    await state.clear()
+    await message.answer("✅ Предмет обновлён" if ok else "❌ Предмет не найден")

@@ -6,6 +6,10 @@ class AddSubjectStates(StatesGroup):
     waiting_note = State()
 
 
+class EditSubjectStates(StatesGroup):
+    waiting_value = State()
+
+
 class AddTaskStates(StatesGroup):
     waiting_subject = State()
     waiting_title = State()
