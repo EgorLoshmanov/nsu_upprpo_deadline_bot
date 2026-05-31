@@ -86,7 +86,7 @@ async def deadline_notifier(bot):
                 text=f"⏰ Завтра дедлайн!\n\n📌 {task['title']}"
             )
 
-        #  очистка старых задач
+        #  очистка старых задач 12 и 30 дней
         deleted_unfinished = delete_old_tasks(12)
         deleted_finished = delete_old_tasks_completed(30)
 
