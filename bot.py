@@ -30,8 +30,9 @@ async def main():
 
     bot = Bot(token=TOKEN)
     try:
-        # фоновая задача для отправки уведомлений 
-        asyncio.create_task(deadline_notifier(bot))
+        # фоновая задача для отправки уведомлений;
+        # ссылку сохраняем, иначе сборщик мусора может уничтожить задачу
+        notifier_task = asyncio.create_task(deadline_notifier(bot))
         # основной цикл
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 

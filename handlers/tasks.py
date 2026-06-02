@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 from keyboards.tasks_menu import tasks_menu
+from keyboards.main_menu import MENU_BUTTONS
 from states.states import AddTaskStates, EditTaskStates
 from services.subject_service import get_subjects
 from services.tasks_service import (
@@ -15,7 +16,7 @@ from services.tasks_service import (
     update_task_deadline,
     update_task_note,
 )
-from utils import parse_deadline
+from utils import parse_deadline, answer_long
 
 from datetime import date
 
@@ -27,9 +28,21 @@ NOTE_PROMPT = (
 )
 
 
+def _is_dialog_input(message: Message) -> bool:
+    """
+    True, если сообщение — обычный текстовый ввод диалога, а не команда
+    или кнопка главного меню. Используется как фильтр на FSM-шагах, чтобы
+    навигация (кнопки/команды) не воспринималась как ввод и обрабатывалась
+    своими хендлерами (которые сбрасывают состояние).
+    """
+    text = message.text
+    return bool(text) and not text.startswith("/") and text not in MENU_BUTTONS
+
+
 @router.message(Command("add"))
 @router.message(F.text == "📝 Задания")
-async def tasks_handler(message: Message):
+async def tasks_handler(message: Message, state: FSMContext):
+    await state.clear()
     await message.answer("📝 Управление заданиями:", reply_markup=tasks_menu)
 
 
@@ -60,14 +73,14 @@ async def task_add_subject(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.message(AddTaskStates.waiting_title)
+@router.message(AddTaskStates.waiting_title, _is_dialog_input)
 async def task_add_title(message: Message, state: FSMContext):
     await state.update_data(title=message.text)
     await message.answer("Введите дедлайн (например: 25.04, завтра, 5 мая):")
     await state.set_state(AddTaskStates.waiting_deadline)
 
 
-@router.message(AddTaskStates.waiting_deadline)
+@router.message(AddTaskStates.waiting_deadline, _is_dialog_input)
 async def task_add_deadline(message: Message, state: FSMContext):
     try:
         deadline = parse_deadline(message.text)
@@ -108,7 +121,7 @@ async def task_add_past_change(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.message(AddTaskStates.waiting_note)
+@router.message(AddTaskStates.waiting_note, _is_dialog_input)
 async def task_add_note(message: Message, state: FSMContext):
     data = await state.get_data()
     note = "" if message.text.strip() == "-" else message.text
@@ -143,10 +156,10 @@ async def task_list(event: Message | CallbackQuery):
         text = "\n\n".join(lines)
 
     if isinstance(event, CallbackQuery):
-        await event.message.answer(text)
+        await answer_long(event.message, text)
         await event.answer()
     else:
-        await event.answer(text)
+        await answer_long(event, text)
 
 
 @router.callback_query(F.data == "task_by_subject")
@@ -186,7 +199,7 @@ async def task_by_subject_list(callback: CallbackQuery):
             lines.append(line)
         text = f"📚 {subject_name}:\n\n" + "\n\n".join(lines)
 
-    await callback.message.answer(text)
+    await answer_long(callback.message, text)
     await callback.answer()
 
 
@@ -210,10 +223,10 @@ async def task_completed_list(event: Message | CallbackQuery):
         text = "✅ Выполненные задания:\n\n" + "\n\n".join(lines)
 
     if isinstance(event, CallbackQuery):
-        await event.message.answer(text)
+        await answer_long(event.message, text)
         await event.answer()
     else:
-        await event.answer(text)
+        await answer_long(event, text)
 
 
 @router.message(Command("done"))
@@ -359,7 +372,7 @@ async def task_edit_field_selected(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.message(EditTaskStates.waiting_value)
+@router.message(EditTaskStates.waiting_value, _is_dialog_input)
 async def task_edit_apply(message: Message, state: FSMContext):
     data = await state.get_data()
     task_id = data["task_id"]

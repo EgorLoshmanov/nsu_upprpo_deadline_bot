@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 from keyboards.subjects_menu import subjects_menu
+from keyboards.main_menu import MENU_BUTTONS
 from states.states import AddSubjectStates, EditSubjectStates
 from services.subject_service import (
     add_subject,
@@ -16,9 +17,36 @@ from services.subject_service import (
 router = Router()
 
 
+def _is_dialog_input(message: Message) -> bool:
+    """
+    True, если сообщение — обычный текстовый ввод диалога, а не команда
+    или кнопка главного меню. Используется как фильтр на FSM-шагах, чтобы
+    навигация (кнопки/команды) не воспринималась как ввод и обрабатывалась
+    своими хендлерами (которые сбрасывают состояние).
+    """
+    text = message.text
+    return bool(text) and not text.startswith("/") and text not in MENU_BUTTONS
+
+
+def _name_taken(user_id: int, name: str, exclude_id: int | None = None) -> bool:
+    """
+    Проверяет, есть ли у пользователя предмет с таким же именем
+    (без учёта регистра и крайних пробелов). exclude_id позволяет
+    исключить сам редактируемый предмет (чтобы не считать его дубликатом).
+    """
+    target = name.strip().lower()
+    for s in get_subjects(user_id):
+        if exclude_id is not None and s["id"] == exclude_id:
+            continue
+        if s["name"].strip().lower() == target:
+            return True
+    return False
+
+
 @router.message(Command("subjects"))
 @router.message(F.text == "📚 Предметы")
-async def subjects_handler(message: Message):
+async def subjects_handler(message: Message, state: FSMContext):
+    await state.clear()
     await message.answer("📚 Управление предметами:", reply_markup=subjects_menu)
 
 
@@ -29,8 +57,12 @@ async def subject_add_start(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.message(AddSubjectStates.waiting_name)
+@router.message(AddSubjectStates.waiting_name, _is_dialog_input)
 async def subject_add_name(message: Message, state: FSMContext):
+    if _name_taken(message.from_user.id, message.text):
+        await state.clear()
+        await message.answer("❌ Такой предмет уже есть.")
+        return
     await state.update_data(name=message.text)
     await message.answer(
         "Введите заметку к предмету (ссылка, пояснение) "
@@ -39,7 +71,7 @@ async def subject_add_name(message: Message, state: FSMContext):
     await state.set_state(AddSubjectStates.waiting_note)
 
 
-@router.message(AddSubjectStates.waiting_note)
+@router.message(AddSubjectStates.waiting_note, _is_dialog_input)
 async def subject_add_finish(message: Message, state: FSMContext):
     data = await state.get_data()
     note = "" if message.text.strip() == "-" else message.text
@@ -137,7 +169,7 @@ async def subject_edit_field_selected(callback: CallbackQuery, state: FSMContext
     await callback.answer()
 
 
-@router.message(EditSubjectStates.waiting_value)
+@router.message(EditSubjectStates.waiting_value, _is_dialog_input)
 async def subject_edit_apply(message: Message, state: FSMContext):
     data = await state.get_data()
     subject_id = data["subject_id"]
@@ -145,6 +177,10 @@ async def subject_edit_apply(message: Message, state: FSMContext):
     user_id = message.from_user.id
 
     if field == "name":
+        if _name_taken(user_id, message.text, exclude_id=subject_id):
+            await state.clear()
+            await message.answer("❌ Такой предмет уже есть.")
+            return
         ok = update_subject_name(user_id, subject_id, message.text)
     else:
         note = "" if message.text.strip() == "-" else message.text

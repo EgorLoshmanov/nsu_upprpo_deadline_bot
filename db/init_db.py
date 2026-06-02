@@ -1,3 +1,5 @@
+import sqlite3
+
 from db.database import get_connection
 
 def init_db():
@@ -29,21 +31,21 @@ def init_db():
     )
     """)
 
-    # добавляем новые поля 
+    # добавляем новые поля (OperationalError = столбец уже существует)
     try:
         conect.execute("ALTER TABLE subjects ADD COLUMN note TEXT")
-    except:
+    except sqlite3.OperationalError:
         pass
 
     try:
         conect.execute("ALTER TABLE tasks ADD COLUMN note TEXT")
-    except:
+    except sqlite3.OperationalError:
         pass
 
     # дата отметки выполнения — от неё считается автоудаление выполненных задач
     try:
         conect.execute("ALTER TABLE tasks ADD COLUMN done_at DATE")
-    except:
+    except sqlite3.OperationalError:
         pass
     # сохраняем таблицы в базе данных 
     conect.commit()

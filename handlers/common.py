@@ -6,6 +6,7 @@ from aiogram.types import Message
 from keyboards.main_menu import main_menu
 from services.subject_service import get_subjects
 from services.tasks_service import get_tasks_due_in
+from utils import answer_long
 
 router = Router()
 
@@ -13,7 +14,8 @@ UPCOMING_DAYS = 7
 
 
 @router.message(CommandStart())
-async def start(message: Message):
+async def start(message: Message, state: FSMContext):
+    await state.clear()
     await message.answer(
         f"👋 Привет, {message.from_user.first_name}! Я помогу отслеживать учебные дедлайны.\n"
         "Выбери действие:",
@@ -22,7 +24,8 @@ async def start(message: Message):
 
 
 @router.message(Command("help"))
-async def help_handler(message: Message):
+async def help_handler(message: Message, state: FSMContext):
+    await state.clear()
     await message.answer(
         "📖 Команды бота:\n"
         "/start — главное меню\n"
@@ -51,7 +54,8 @@ async def cancel_handler(message: Message, state: FSMContext):
 
 @router.message(Command("upcoming"))
 @router.message(F.text == "📅 Ближайшие дедлайны")
-async def upcoming_deadlines(message: Message):
+async def upcoming_deadlines(message: Message, state: FSMContext):
+    await state.clear()
     user_id = message.from_user.id
     tasks = get_tasks_due_in(user_id=user_id, days=UPCOMING_DAYS)
 
@@ -68,11 +72,12 @@ async def upcoming_deadlines(message: Message):
             line += f"\n📝 {t['note']}"
         lines.append(line)
 
-    await message.answer(
-        f"📅 Ближайшие дедлайны ({UPCOMING_DAYS} дней):\n\n" + "\n\n".join(lines)
+    await answer_long(
+        message,
+        f"📅 Ближайшие дедлайны ({UPCOMING_DAYS} дней):\n\n" + "\n\n".join(lines),
     )
 
 
 @router.message(F.text == "❓ Помощь")
-async def help_button_handler(message: Message):
-    await help_handler(message)
+async def help_button_handler(message: Message, state: FSMContext):
+    await help_handler(message, state)

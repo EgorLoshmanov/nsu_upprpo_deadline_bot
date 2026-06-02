@@ -73,22 +73,34 @@ async def deadline_notifier(bot):
         # цикл заходит сюда и засыпает и этот while останавливается притом внешний while работает как обычно
         await sleep_until_morning()
 
-        # завтряшняя дата
-        tomorrow = date.today() + timedelta(days=1)
+        # тело итерации обёрнуто в try/except: любая ошибка (БД, сеть и т.д.)
+        # не должна навсегда обрывать фоновый цикл — на следующий день он
+        # просто отработает заново
+        try:
+            # завтряшняя дата
+            tomorrow = date.today() + timedelta(days=1)
 
-        # задачи с дедлайном на завтра
-        tasks = get_tasks_by_deadline(tomorrow)
+            # задачи с дедлайном на завтра
+            tasks = get_tasks_by_deadline(tomorrow)
 
-        # высылаем пользователям(конкретным) сообщение о дедлайне
-        for task in tasks:
-            await bot.send_message(
-                chat_id=task["user_id"],
-                text=f"⏰ Завтра дедлайн!\n\n📌 {task['title']}"
-            )
+            # высылаем пользователям(конкретным) сообщение о дедлайне
+            for task in tasks:
+                # отправка одному пользователю может упасть (заблокировал бота,
+                # удалил аккаунт и т.д.) — ловим ошибку, чтобы не оборвать рассылку
+                # остальным и не убить весь фоновый цикл
+                try:
+                    await bot.send_message(
+                        chat_id=task["user_id"],
+                        text=f"⏰ Завтра дедлайн!\n\n📌 {task['title']}"
+                    )
+                except Exception as e:
+                    print(f"[NOTIFY] не доставлено user_id={task['user_id']}: {e}")
 
-        #  очистка старых задач 12 и 30 дней
-        deleted_unfinished = delete_old_tasks(12)
-        deleted_finished = delete_old_tasks_completed(30)
+            #  очистка старых задач 12 и 30 дней
+            deleted_unfinished = delete_old_tasks(12)
+            deleted_finished = delete_old_tasks_completed(30)
 
-        print(f"[CLEANUP] deleted {deleted_unfinished} unfinished tasks")
-        print(f"[CLEANUP] deleted {deleted_finished} finished tasks")
+            print(f"[CLEANUP] deleted {deleted_unfinished} unfinished tasks")
+            print(f"[CLEANUP] deleted {deleted_finished} finished tasks")
+        except Exception as e:
+            print(f"[NOTIFIER] ошибка в фоновом цикле: {e}")
