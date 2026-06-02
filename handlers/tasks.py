@@ -4,8 +4,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 from keyboards.tasks_menu import tasks_menu
-from keyboards.main_menu import MENU_BUTTONS
 from states.states import AddTaskStates, EditTaskStates
+from .filters import is_dialog_input
 from services.subject_service import get_subjects
 from services.tasks_service import (
     add_task,
@@ -26,17 +26,6 @@ NOTE_PROMPT = (
     "Введите заметку к заданию (ссылка, пояснение) "
     "или отправьте «-», чтобы пропустить:"
 )
-
-
-def _is_dialog_input(message: Message) -> bool:
-    """
-    True, если сообщение — обычный текстовый ввод диалога, а не команда
-    или кнопка главного меню. Используется как фильтр на FSM-шагах, чтобы
-    навигация (кнопки/команды) не воспринималась как ввод и обрабатывалась
-    своими хендлерами (которые сбрасывают состояние).
-    """
-    text = message.text
-    return bool(text) and not text.startswith("/") and text not in MENU_BUTTONS
 
 
 @router.message(Command("add"))
@@ -73,14 +62,14 @@ async def task_add_subject(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.message(AddTaskStates.waiting_title, _is_dialog_input)
+@router.message(AddTaskStates.waiting_title, is_dialog_input)
 async def task_add_title(message: Message, state: FSMContext):
     await state.update_data(title=message.text)
     await message.answer("Введите дедлайн (например: 25.04, завтра, 5 мая):")
     await state.set_state(AddTaskStates.waiting_deadline)
 
 
-@router.message(AddTaskStates.waiting_deadline, _is_dialog_input)
+@router.message(AddTaskStates.waiting_deadline, is_dialog_input)
 async def task_add_deadline(message: Message, state: FSMContext):
     try:
         deadline = parse_deadline(message.text)
@@ -121,7 +110,7 @@ async def task_add_past_change(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.message(AddTaskStates.waiting_note, _is_dialog_input)
+@router.message(AddTaskStates.waiting_note, is_dialog_input)
 async def task_add_note(message: Message, state: FSMContext):
     data = await state.get_data()
     note = "" if message.text.strip() == "-" else message.text
@@ -372,7 +361,7 @@ async def task_edit_field_selected(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.message(EditTaskStates.waiting_value, _is_dialog_input)
+@router.message(EditTaskStates.waiting_value, is_dialog_input)
 async def task_edit_apply(message: Message, state: FSMContext):
     data = await state.get_data()
     task_id = data["task_id"]

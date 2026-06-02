@@ -4,8 +4,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 from keyboards.subjects_menu import subjects_menu
-from keyboards.main_menu import MENU_BUTTONS
 from states.states import AddSubjectStates, EditSubjectStates
+from .filters import is_dialog_input
 from services.subject_service import (
     add_subject,
     get_subjects,
@@ -15,17 +15,6 @@ from services.subject_service import (
 )
 
 router = Router()
-
-
-def _is_dialog_input(message: Message) -> bool:
-    """
-    True, если сообщение — обычный текстовый ввод диалога, а не команда
-    или кнопка главного меню. Используется как фильтр на FSM-шагах, чтобы
-    навигация (кнопки/команды) не воспринималась как ввод и обрабатывалась
-    своими хендлерами (которые сбрасывают состояние).
-    """
-    text = message.text
-    return bool(text) and not text.startswith("/") and text not in MENU_BUTTONS
 
 
 def _name_taken(user_id: int, name: str, exclude_id: int | None = None) -> bool:
@@ -57,7 +46,7 @@ async def subject_add_start(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.message(AddSubjectStates.waiting_name, _is_dialog_input)
+@router.message(AddSubjectStates.waiting_name, is_dialog_input)
 async def subject_add_name(message: Message, state: FSMContext):
     if _name_taken(message.from_user.id, message.text):
         await state.clear()
@@ -71,7 +60,7 @@ async def subject_add_name(message: Message, state: FSMContext):
     await state.set_state(AddSubjectStates.waiting_note)
 
 
-@router.message(AddSubjectStates.waiting_note, _is_dialog_input)
+@router.message(AddSubjectStates.waiting_note, is_dialog_input)
 async def subject_add_finish(message: Message, state: FSMContext):
     data = await state.get_data()
     note = "" if message.text.strip() == "-" else message.text
@@ -169,7 +158,7 @@ async def subject_edit_field_selected(callback: CallbackQuery, state: FSMContext
     await callback.answer()
 
 
-@router.message(EditSubjectStates.waiting_value, _is_dialog_input)
+@router.message(EditSubjectStates.waiting_value, is_dialog_input)
 async def subject_edit_apply(message: Message, state: FSMContext):
     data = await state.get_data()
     subject_id = data["subject_id"]

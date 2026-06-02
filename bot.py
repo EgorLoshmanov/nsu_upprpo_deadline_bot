@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 from handlers import router
 
-from db import get_connection, init_db
+from db import init_db
 
 from services import deadline_notifier
 
@@ -29,14 +29,15 @@ async def main():
     init_db()
 
     bot = Bot(token=TOKEN)
+    # фоновая задача для отправки уведомлений;
+    # ссылку сохраняем, иначе сборщик мусора может уничтожить задачу
+    notifier_task = asyncio.create_task(deadline_notifier(bot))
     try:
-        # фоновая задача для отправки уведомлений;
-        # ссылку сохраняем, иначе сборщик мусора может уничтожить задачу
-        notifier_task = asyncio.create_task(deadline_notifier(bot))
         # основной цикл
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
     finally:
+        notifier_task.cancel()
         await bot.session.close()
 
 
