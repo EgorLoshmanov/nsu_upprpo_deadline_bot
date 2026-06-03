@@ -1,0 +1,31 @@
+# система контроля версий
+.git
+.gitignore
+
+# секреты и локальные данные — не должны попадать в образ
+.env
+db/*.db
+
+# кэш и артефакты Python
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+.vscode/
+
+# документация и материалы проекта (не нужны для запуска)
+*.md
+*.txt
+*.pdf
+# ...но requirements.txt нужен для установки зависимостей
+!requirements.txt
+
+# тесты не нужны в рантайм-образе
+tests/
+
+# прочее
+.DS_Store
+.dockerignore
+Dockerfile
+docker-compose.yml

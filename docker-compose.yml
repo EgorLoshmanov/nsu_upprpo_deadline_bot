@@ -5,6 +5,7 @@ services:
       - .env
     environment:
       - TZ=Asia/Novosibirsk
+      - PYTHONUNBUFFERED=1
     volumes:
       - ./db:/app/db
     restart: unless-stopped
